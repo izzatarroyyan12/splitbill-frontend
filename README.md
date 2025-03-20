@@ -1,4 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Livin Frontend
+
+Frontend application for the Livin bill-splitting platform.
+
+## Setup
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Set up environment variables:
+```bash
+cp .env.example .env.local
+# Edit .env.local with your configuration
+```
+
+3. Run the development server:
+```bash
+npm run dev
+```
+
+## Features
+
+- User authentication (login/register)
+- Bill creation and management
+- Balance management
+- Payment processing
+- Mobile-first responsive design
+
+## Deployment
+
+This application is configured for deployment on Vercel. The `next.config.js` file contains the necessary configuration.
+
+## Environment Variables
+
+- `NEXT_PUBLIC_API_URL`: Backend API URL
 
 ## Getting Started
 
