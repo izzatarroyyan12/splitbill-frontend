@@ -21,7 +21,7 @@ interface Item {
   price_per_unit: number;
   quantity: number;
   split?: Array<{
-    external_name?: string;
+    external_name: string;
     quantity: number;
   }>;
 }

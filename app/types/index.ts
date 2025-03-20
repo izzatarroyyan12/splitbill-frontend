@@ -3,6 +3,8 @@ export interface User {
   username: string;
   email: string;
   balance: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Bill {
@@ -12,8 +14,7 @@ export interface Bill {
   created_by: string;
   split_method: 'equal' | 'per_product';
   participants: Array<{
-    user_id?: string;
-    external_name?: string;
+    external_name: string;
     amount_due: number;
     status: 'unpaid' | 'paid';
   }>;
@@ -22,8 +23,7 @@ export interface Bill {
     price_per_unit: number;
     quantity: number;
     split?: Array<{
-      user_id?: string;
-      external_name?: string;
+      external_name: string;
       quantity: number;
     }>;
   }>;

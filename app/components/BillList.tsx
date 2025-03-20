@@ -78,116 +78,88 @@ export default function BillList({ token }: BillListProps) {
 
   return (
     <div className="space-y-4">
-      {bills.map((bill) => {
-        const isCreator = bill.created_by === token;
-        const userParticipant = bill.participants.find(p => p.user_id === token);
-        const amountDue = userParticipant?.amount_due || 0;
-        const isPaid = userParticipant?.status === 'paid';
-
-        return (
-          <div
-            key={bill._id}
-            className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow relative"
-          >
-            {/* Status Label */}
-            <div className="absolute top-2 right-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                {isCreator ? 'You' : `Assigned by ${bill.created_by}`}
-              </span>
+      {bills.map((bill) => (
+        <div key={bill._id} className="bg-white rounded-lg shadow p-4">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{bill.bill_name}</h3>
+              <p className="text-sm text-gray-500">
+                Created by {bill.created_by === token ? 'you' : bill.created_by}
+              </p>
             </div>
-
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">{bill.bill_name}</h3>
-                <p className="text-sm text-gray-500">
-                  Created on {new Date(bill.created_at).toLocaleDateString()}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">
-                  Rp {bill.total_amount.toLocaleString()}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {bill.participants.filter(p => p.status === 'paid').length}/{bill.participants.length} paid
-                </p>
-              </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-gray-900">
+                Rp {bill.total_amount.toLocaleString()}
+              </p>
+              <p className="text-sm text-gray-500">
+                {bill.split_method === 'equal' ? 'Equal Split' : 'Per Product Split'}
+              </p>
             </div>
+          </div>
 
-            <div className="mt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Participants:</h4>
+          <div className="space-y-4">
+            {/* Items */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Items</h4>
               <div className="space-y-2">
-                {bill.participants.map((participant, index) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-start text-sm"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-600">
-                          {participant.external_name}
-                        </span>
-                        {participant.user_id && (
-                          <span className="text-green-500" title="Verified User">
-                            ✔
-                          </span>
-                        )}
-                      </div>
-                      {/* Show items for per-product split */}
-                      {bill.split_method === 'per_product' && participant.user_id && (
-                        <div className="mt-1 ml-4 text-xs text-gray-500">
-                          {bill.items
-                            .filter(item => item.split?.some(s => s.user_id === participant.user_id))
-                            .map(item => (
-                              <div key={item.name}>
-                                {item.name} × {item.split?.find(s => s.user_id === participant.user_id)?.quantity}
-                              </div>
-                            ))}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-gray-900">
-                        Rp {participant.amount_due.toLocaleString()}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${
-                            participant.status === 'paid'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}
-                        >
-                          {participant.status}
-                        </span>
-                        {isCreator && !participant.user_id && participant.status === 'unpaid' && (
-                          <button
-                            onClick={() => handleMarkAsPaid(bill._id, index)}
-                            className="text-xs text-indigo-600 hover:text-indigo-800"
-                          >
-                            Mark as Paid
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                {bill.items.map((item, index) => (
+                  <div key={index} className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">
+                      {item.name} x {item.quantity}
+                    </span>
+                    <span className="text-gray-900">
+                      Rp {(item.price_per_unit * item.quantity).toLocaleString()}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Payment Actions */}
-            {!isPaid && !isCreator && amountDue > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => handlePayBill(bill._id, amountDue)}
-                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Pay Your Share
-                </button>
+            {/* Participants */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Participants</h4>
+              <div className="space-y-2">
+                {bill.participants.map((participant, index) => (
+                  <div key={index} className="flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600">
+                        {participant.external_name}
+                      </span>
+                      {participant.status === 'paid' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                          Paid
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm font-medium text-gray-900">
+                        Rp {participant.amount_due.toLocaleString()}
+                      </span>
+                      {participant.status === 'unpaid' && (
+                        bill.created_by === token ? (
+                          <button
+                            onClick={() => handleMarkAsPaid(bill._id, index)}
+                            className="text-sm text-indigo-600 hover:text-indigo-500"
+                          >
+                            Mark as Paid
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handlePayBill(bill._id, participant.amount_due)}
+                            className="text-sm text-indigo-600 hover:text-indigo-500"
+                          >
+                            Pay
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
-        );
-      })}
+        </div>
+      ))}
 
       <PaymentConfirmationModal
         isOpen={paymentModal.isOpen}
