@@ -45,7 +45,10 @@ export default function BillDetail({ bill, isOpen, onClose, onUpdate }: BillDeta
 
   const handlePayBill = async (password: string) => {
     try {
-      await apiService.payBill(bill._id, password);
+      await apiService.payBill({
+        billId: bill._id,
+        password
+      });
       toast.success('Bill paid successfully');
       setShowPaymentModal(false);
       onUpdate();
