@@ -81,7 +81,7 @@ export default function CreateBillModal({
       {
         external_name: '',
         amount_due: 0,
-        status: 'unpaid'
+        status: 'pending' as const
       }
     ]);
   };
@@ -208,47 +208,6 @@ export default function CreateBillModal({
     setIsLoading(true);
 
     try {
-      // Validate required fields
-      if (!billName.trim()) {
-        throw new Error('Bill name is required');
-      }
-
-      if (participants.length < 1) {
-        throw new Error('At least one participant is required');
-      }
-
-      // Validate participant names
-      for (const participant of participants) {
-        if (!participant.external_name.trim()) {
-          throw new Error('All participants must have a name');
-        }
-      }
-
-      if (items.some(item => !item.name.trim())) {
-        throw new Error('All items must have a name');
-      }
-
-      if (items.some(item => item.price_per_unit <= 0)) {
-        throw new Error('All items must have a price greater than 0');
-      }
-
-      if (items.some(item => item.quantity <= 0)) {
-        throw new Error('All items must have a quantity greater than 0');
-      }
-
-      // Validate split quantities for per-product split
-      if (splitMethod === 'per_product') {
-        for (const item of items) {
-          if (!item.split?.length) {
-            throw new Error(`Item "${item.name}" must have split quantities defined`);
-          }
-          const totalSplitQuantity = item.split.reduce((sum, split) => sum + split.quantity, 0);
-          if (totalSplitQuantity !== item.quantity) {
-            throw new Error(`Split quantities for item "${item.name}" must equal total quantity (${item.quantity})`);
-          }
-        }
-      }
-
       // Calculate total amount
       const totalAmount = calculateTotal();
 
@@ -261,35 +220,35 @@ export default function CreateBillModal({
       const updatedParticipants = participants.map((participant, index) => ({
         ...participant,
         amount_due: Math.round(participantAmounts[index] * 100) / 100, // Round to 2 decimal places
-        status: participant.user_id === user._id ? 'paid' as const : 'unpaid' as const
+        status: participant.user_id === user._id ? 'paid' as const : 'pending' as const
       }));
 
       const billData: CreateBillRequest = {
         bill_name: billName.trim(),
-        total_amount: totalAmount,
-        created_by: user._id,
-        created_by_username: user.username,
         split_method: splitMethod,
-        participants: updatedParticipants,
+        participants: updatedParticipants.map(({ status, ...participant }) => ({
+          ...participant,
+          external_name: participant.external_name || ''
+        })),
         items: items.map(item => ({
           name: item.name.trim(),
           price_per_unit: Number(item.price_per_unit),
           quantity: Number(item.quantity),
           split: splitMethod === 'per_product' ? item.split?.map(split => ({
-            external_name: split.external_name.trim(),
+            external_name: split.external_name || '',
             quantity: Number(split.quantity)
           })) : undefined
         }))
       };
 
-      const response = await apiService.createBill(billData);
+      await apiService.createBill(billData);
       toast.success('Bill created successfully!');
       onClose();
       onBillCreated();
-      setIsLoading(false);
     } catch (error: any) {
       console.error('Error creating bill:', error);
       toast.error(error.message || 'Failed to create bill');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -479,7 +438,7 @@ export default function CreateBillModal({
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       {participants.map((participant, participantIndex) => (
                         <div key={participantIndex} className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">{participant.external_name}:</span>
+                          <span className="text-sm text-gray-600">{participant.external_name || ''}</span>
                           <input
                             type="number"
                             value={item.split?.[participantIndex]?.quantity || 0}
