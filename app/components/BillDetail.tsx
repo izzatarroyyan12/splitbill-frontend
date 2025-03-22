@@ -10,13 +10,16 @@ import { FiX, FiCheck, FiClock, FiUser, FiDollarSign } from 'react-icons/fi';
 
 interface BillDetailProps {
   bill: Bill;
+  isOpen: boolean;
   onClose: () => void;
   onUpdate: () => void;
 }
 
-export default function BillDetail({ bill, onClose, onUpdate }: BillDetailProps) {
+export default function BillDetail({ bill, isOpen, onClose, onUpdate }: BillDetailProps) {
   const { user } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  if (!isOpen) return null;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -52,13 +55,13 @@ export default function BillDetail({ bill, onClose, onUpdate }: BillDetailProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[100] overflow-y-auto">
+      <div className="bg-white rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto relative">
+        <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pt-2">
           <h2 className="text-2xl font-bold text-gray-900">{bill.bill_name}</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 transition-colors"
           >
             <FiX className="h-6 w-6" />
           </button>
