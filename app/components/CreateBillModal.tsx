@@ -1,169 +1,296 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { Participant, Item, CreateBillRequest } from '../types';
 import toast from 'react-hot-toast';
 
 interface CreateBillModalProps {
   isOpen: boolean;
   onClose: () => void;
-  token: string;
+  onBillCreated: () => void;
 }
 
-interface Participant {
-  external_name: string;
-  amount_due: number;
-  status: 'unpaid' | 'paid';
-}
-
-interface Item {
-  name: string;
-  price_per_unit: number;
-  quantity: number;
-  split?: Array<{
-    external_name: string;
-    quantity: number;
-  }>;
-}
-
-export default function CreateBillModal({ isOpen, onClose, token }: CreateBillModalProps) {
+export default function CreateBillModal({
+  isOpen,
+  onClose,
+  onBillCreated
+}: CreateBillModalProps) {
+  const { user } = useAuth();
   const [billName, setBillName] = useState('');
   const [splitMethod, setSplitMethod] = useState<'equal' | 'per_product'>('equal');
-  const [participants, setParticipants] = useState<Participant[]>([
-    { external_name: '', amount_due: 0, status: 'unpaid' }
-  ]);
+  const [includeMe, setIncludeMe] = useState(true);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [items, setItems] = useState<Item[]>([
     { name: '', price_per_unit: 0, quantity: 1 }
   ]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Reset form when modal opens
+      setBillName('');
+      setIncludeMe(true);
+      setSplitMethod('equal');
+      setItems([{ name: '', price_per_unit: 0, quantity: 1 }]);
+      
+      // Initialize participants based on includeMe state
+      if (user) {
+        setParticipants(includeMe ? [
+          {
+            user_id: user._id,
+            username: user.username,
+            external_name: user.username,
+            amount_due: 0,
+            status: 'paid'
+          }
+        ] : []);
+      }
+    }
+  }, [isOpen, user]);
+
+  // Update participants when includeMe changes
+  useEffect(() => {
+    if (user) {
+      if (includeMe) {
+        // Add current user if not already in the list
+        const currentUserExists = participants.some(p => p.user_id === user._id);
+        if (!currentUserExists) {
+          setParticipants([
+            {
+              user_id: user._id,
+              username: user.username,
+              external_name: user.username,
+              amount_due: 0,
+              status: 'paid'
+            },
+            ...participants
+          ]);
+        }
+      } else {
+        // Remove current user from participants
+        setParticipants(participants.filter(p => p.user_id !== user._id));
+      }
+    }
+  }, [includeMe, user]);
 
   const addParticipant = () => {
-    setParticipants([...participants, { external_name: '', amount_due: 0, status: 'unpaid' }]);
+    setParticipants([
+      ...participants,
+      {
+        external_name: '',
+        amount_due: 0,
+        status: 'unpaid'
+      }
+    ]);
   };
 
   const removeParticipant = (index: number) => {
-    setParticipants(participants.filter((_, i) => i !== index));
+    if (participants.length > 1) {
+      const participantToRemove = participants[index];
+      // Don't allow removing the current user if includeMe is true
+      if (includeMe && participantToRemove.user_id === user?._id) {
+        toast.error("You can't remove yourself while 'Include me' is checked");
+        return;
+      }
+      setParticipants(participants.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateParticipant = (index: number, value: string) => {
+    const newParticipants = [...participants];
+    newParticipants[index] = {
+      ...newParticipants[index],
+      external_name: value
+    };
+    setParticipants(newParticipants);
   };
 
   const addItem = () => {
-    setItems([...items, { name: '', price_per_unit: 0, quantity: 1 }]);
+    setItems([
+      ...items,
+      {
+        name: '',
+        price_per_unit: 0,
+        quantity: 1,
+        split: participants.map(p => ({
+          external_name: p.external_name,
+          quantity: Math.floor(1 / participants.length)
+        }))
+      }
+    ]);
   };
 
   const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateItem = (index: number, field: keyof Item, value: string | number) => {
+    const newItems = [...items];
+    if (field === 'price_per_unit' || field === 'quantity') {
+      value = Math.max(0, Number(value));
+    }
+    newItems[index] = { ...newItems[index], [field]: value };
+    setItems(newItems);
+  };
+
+  const updateItemSplit = (itemIndex: number, participantIndex: number, quantity: number) => {
+    const newItems = [...items];
+    const item = newItems[itemIndex];
+    
+    if (!item.split) {
+      item.split = participants.map(p => ({
+        external_name: p.external_name,
+        quantity: Math.floor(item.quantity / participants.length)
+      }));
+    }
+    
+    // Ensure quantity doesn't exceed item's total quantity
+    const newQuantity = Math.min(Math.max(0, quantity), item.quantity);
+    if (item.split) {
+      item.split[participantIndex].quantity = newQuantity;
+    }
+    
+    setItems(newItems);
   };
 
   const calculateTotal = () => {
     return items.reduce((sum, item) => sum + (item.price_per_unit * item.quantity), 0);
   };
 
-  const validateForm = () => {
-    // Validate bill name
-    if (!billName.trim()) {
-      toast.error('Please enter a bill name');
-      return false;
-    }
+  const calculateEqualSplit = (totalAmount: number, numberOfParticipants: number) => {
+    const amountPerPerson = totalAmount / numberOfParticipants;
+    return Array(numberOfParticipants).fill(amountPerPerson);
+  };
 
-    // Validate participants
-    if (participants.some(p => !p.external_name.trim())) {
-      toast.error('Please enter names for all participants');
-      return false;
-    }
-
-    // Validate items
-    if (items.some(item => !item.name.trim() || item.price_per_unit <= 0 || item.quantity <= 0)) {
-      toast.error('Please fill in all item details correctly');
-      return false;
-    }
-
-    // Validate per-product splits
-    if (splitMethod === 'per_product') {
-      for (const item of items) {
-        if (!item.split || item.split.length === 0) {
-          toast.error('Please assign quantities for all participants in per-product split');
-          return false;
-        }
-
+  const calculatePerProductSplit = (items: Item[], participants: Participant[]) => {
+    const participantAmounts = new Array(participants.length).fill(0);
+    
+    items.forEach(item => {
+      const itemTotal = item.price_per_unit * item.quantity;
+      
+      if (item.split) {
         const totalSplitQuantity = item.split.reduce((sum, split) => sum + split.quantity, 0);
-        if (totalSplitQuantity !== item.quantity) {
-          toast.error(`Total split quantity must equal item quantity for ${item.name}`);
-          return false;
+        if (totalSplitQuantity > 0) {
+          item.split.forEach((split, index) => {
+            const splitRatio = split.quantity / totalSplitQuantity;
+            participantAmounts[index] += itemTotal * splitRatio;
+          });
+        } else {
+          // If no split quantities, divide equally
+          const equalAmount = itemTotal / participants.length;
+          participants.forEach((_, index) => {
+            participantAmounts[index] += equalAmount;
+          });
         }
-
-        // Check if quantity is 1 and assigned to multiple participants
-        if (item.quantity === 1 && item.split.length > 1) {
-          toast.error(`Item "${item.name}" has quantity 1 and cannot be split between multiple participants`);
-          return false;
-        }
+      } else {
+        // If no split defined, divide equally
+        const equalAmount = itemTotal / participants.length;
+        participants.forEach((_, index) => {
+          participantAmounts[index] += equalAmount;
+        });
       }
-    }
-
-    return true;
+    });
+    
+    return participantAmounts;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
+    if (!user) {
+      toast.error('You must be logged in to create a bill');
       return;
     }
 
-    try {
-      const totalAmount = calculateTotal();
-      
-      // Calculate participant amounts based on split method
-      let participantAmounts: Participant[] = [];
-      
-      if (splitMethod === 'equal') {
-        // For equal split, divide total amount equally
-        const amountPerPerson = totalAmount / participants.length;
-        participantAmounts = participants.map(p => ({
-          external_name: p.external_name,
-          amount_due: amountPerPerson,
-          status: 'unpaid'
-        }));
-      } else {
-        // For per_product split, calculate based on item splits
-        participantAmounts = participants.map(p => ({
-          external_name: p.external_name,
-          amount_due: 0,
-          status: 'unpaid'
-        }));
+    setIsLoading(true);
 
-        // Calculate amount for each participant based on their item splits
-        items.forEach(item => {
-          const itemTotal = item.price_per_unit * item.quantity;
-          if (item.split) {
-            item.split.forEach(split => {
-              const participant = participantAmounts.find(p => p.external_name === split.external_name);
-              if (participant) {
-                participant.amount_due += (itemTotal * (split.quantity / item.quantity));
-              }
-            });
-          }
-        });
+    try {
+      // Validate required fields
+      if (!billName.trim()) {
+        throw new Error('Bill name is required');
       }
 
-      const billData = {
-        bill_name: billName,
+      if (participants.length < 1) {
+        throw new Error('At least one participant is required');
+      }
+
+      // Validate participant names
+      for (const participant of participants) {
+        if (!participant.external_name.trim()) {
+          throw new Error('All participants must have a name');
+        }
+      }
+
+      if (items.some(item => !item.name.trim())) {
+        throw new Error('All items must have a name');
+      }
+
+      if (items.some(item => item.price_per_unit <= 0)) {
+        throw new Error('All items must have a price greater than 0');
+      }
+
+      if (items.some(item => item.quantity <= 0)) {
+        throw new Error('All items must have a quantity greater than 0');
+      }
+
+      // Validate split quantities for per-product split
+      if (splitMethod === 'per_product') {
+        for (const item of items) {
+          if (!item.split?.length) {
+            throw new Error(`Item "${item.name}" must have split quantities defined`);
+          }
+          const totalSplitQuantity = item.split.reduce((sum, split) => sum + split.quantity, 0);
+          if (totalSplitQuantity !== item.quantity) {
+            throw new Error(`Split quantities for item "${item.name}" must equal total quantity (${item.quantity})`);
+          }
+        }
+      }
+
+      // Calculate total amount
+      const totalAmount = calculateTotal();
+
+      // Calculate participant amounts based on split method
+      const participantAmounts = splitMethod === 'equal'
+        ? calculateEqualSplit(totalAmount, participants.length)
+        : calculatePerProductSplit(items, participants);
+
+      // Update participants with calculated amounts
+      const updatedParticipants = participants.map((participant, index) => ({
+        ...participant,
+        amount_due: Math.round(participantAmounts[index] * 100) / 100, // Round to 2 decimal places
+        status: participant.user_id === user._id ? 'paid' as const : 'unpaid' as const
+      }));
+
+      const billData: CreateBillRequest = {
+        bill_name: billName.trim(),
         total_amount: totalAmount,
+        created_by: user._id,
+        created_by_username: user.username,
         split_method: splitMethod,
-        created_by: token,
-        participants: participantAmounts,
+        participants: updatedParticipants,
         items: items.map(item => ({
-          ...item,
-          split: splitMethod === 'per_product' ? item.split : undefined
+          name: item.name.trim(),
+          price_per_unit: Number(item.price_per_unit),
+          quantity: Number(item.quantity),
+          split: splitMethod === 'per_product' ? item.split?.map(split => ({
+            external_name: split.external_name.trim(),
+            quantity: Number(split.quantity)
+          })) : undefined
         }))
       };
 
-      await apiService.createBill(billData);
+      const response = await apiService.createBill(billData);
       toast.success('Bill created successfully!');
       onClose();
-      // Reset form
-      setBillName('');
-      setParticipants([{ external_name: '', amount_due: 0, status: 'unpaid' }]);
-      setItems([{ name: '', price_per_unit: 0, quantity: 1 }]);
-    } catch (error) {
-      toast.error('Failed to create bill');
+      onBillCreated();
+      setIsLoading(false);
+    } catch (error: any) {
+      console.error('Error creating bill:', error);
+      toast.error(error.message || 'Failed to create bill');
+      setIsLoading(false);
     }
   };
 
@@ -171,9 +298,9 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-xl p-4 w-full max-w-sm">
+      <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Create New Bill</h3>
+          <h2 className="text-xl font-semibold">Create New Bill</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
@@ -184,8 +311,7 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Bill Name */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="billName" className="block text-sm font-medium text-gray-700 mb-1">
               Bill Name
@@ -195,14 +321,27 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
               id="billName"
               value={billName}
               onChange={(e) => setBillName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter bill name"
               required
             />
           </div>
 
-          {/* Split Method */}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="includeMe"
+              checked={includeMe}
+              onChange={(e) => setIncludeMe(e.target.checked)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor="includeMe" className="text-sm font-medium text-gray-700">
+              Include me in this bill
+            </label>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Split Method
             </label>
             <div className="flex space-x-4">
@@ -212,9 +351,9 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
                   value="equal"
                   checked={splitMethod === 'equal'}
                   onChange={(e) => setSplitMethod(e.target.value as 'equal' | 'per_product')}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                  className="mr-2"
                 />
-                <span className="ml-2 text-sm text-gray-700">Equal Split</span>
+                Equal Split
               </label>
               <label className="flex items-center">
                 <input
@@ -222,14 +361,13 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
                   value="per_product"
                   checked={splitMethod === 'per_product'}
                   onChange={(e) => setSplitMethod(e.target.value as 'equal' | 'per_product')}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500"
+                  className="mr-2"
                 />
-                <span className="ml-2 text-sm text-gray-700">Per Product</span>
+                Per Product Split
               </label>
             </div>
           </div>
 
-          {/* Participants */}
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -238,9 +376,9 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
               <button
                 type="button"
                 onClick={addParticipant}
-                className="text-sm text-indigo-600 hover:text-indigo-500"
+                className="text-sm text-blue-600 hover:text-blue-700"
               >
-                + Add
+                Add Participant
               </button>
             </div>
             <div className="space-y-2">
@@ -249,35 +387,29 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
                   <input
                     type="text"
                     value={participant.external_name}
-                    onChange={(e) => {
-                      const newParticipants = [...participants];
-                      newParticipants[index] = {
-                        ...participant,
-                        external_name: e.target.value
-                      };
-                      setParticipants(newParticipants);
-                    }}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Name"
+                    onChange={(e) => updateParticipant(index, e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter username or name"
                     required
+                    disabled={participant.user_id === user?._id}
                   />
-                  {participants.length > 1 && (
+                  {participant.user_id !== user?._id && (
                     <button
                       type="button"
                       onClick={() => removeParticipant(index)}
-                      className="text-red-600 hover:text-red-500"
+                      className="text-red-600 hover:text-red-700"
                     >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      Remove
                     </button>
                   )}
                 </div>
               ))}
+              {participants.length === 0 && (
+                <p className="text-sm text-gray-500 italic">No participants added yet. Add at least one participant.</p>
+              )}
             </div>
           </div>
 
-          {/* Items */}
           <div>
             <div className="flex justify-between items-center mb-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -286,104 +418,66 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
               <button
                 type="button"
                 onClick={addItem}
-                className="text-sm text-indigo-600 hover:text-indigo-500"
+                className="text-sm text-blue-600 hover:text-blue-700"
               >
-                + Add
+                Add Item
               </button>
             </div>
-            <div className="space-y-2">
-              {items.map((item, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-4">
+              {items.map((item, itemIndex) => (
+                <div key={itemIndex} className="border rounded-md p-4">
+                  <div className="flex items-center space-x-2 mb-2">
                     <input
                       type="text"
                       value={item.name}
-                      onChange={(e) => {
-                        const newItems = [...items];
-                        newItems[index] = { ...item, name: e.target.value };
-                        setItems(newItems);
-                      }}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="Item"
+                      onChange={(e) => updateItem(itemIndex, 'name', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Item name"
                       required
                     />
                     <input
                       type="number"
                       value={item.price_per_unit}
-                      onChange={(e) => {
-                        const newItems = [...items];
-                        newItems[index] = { ...item, price_per_unit: Number(e.target.value) };
-                        setItems(newItems);
-                      }}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      onChange={(e) => updateItem(itemIndex, 'price_per_unit', e.target.value)}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Price"
+                      min="0"
                       required
                     />
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => {
-                          const newItems = [...items];
-                          newItems[index] = { ...item, quantity: Number(e.target.value) };
-                          setItems(newItems);
-                        }}
-                        className="w-16 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        min="1"
-                        required
-                      />
-                      {items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="text-red-600 hover:text-red-500"
-                        >
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(itemIndex, 'quantity', e.target.value)}
+                      className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Quantity"
+                      min="1"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeItem(itemIndex)}
+                      className="text-red-600 hover:text-red-700"
+                      disabled={items.length === 1}
+                    >
+                      Remove
+                    </button>
                   </div>
-                  
-                  {/* Item Split Section - Only show for per_product split method */}
-                  {splitMethod === 'per_product' && (
-                    <div className="pl-4 border-l-2 border-gray-200">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs text-gray-500">Split between participants:</span>
-                        <span className="text-xs text-gray-500">
-                          Total: {item.quantity} units
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {participants.map((participant, pIndex) => (
-                          <div key={pIndex} className="flex items-center space-x-2">
-                            <span className="text-xs text-gray-600 w-20 truncate">
-                              {participant.external_name}
-                            </span>
-                            <input
-                              type="number"
-                              value={item.split?.[pIndex]?.quantity || 0}
-                              onChange={(e) => {
-                                const newItems = [...items];
-                                if (!newItems[index].split) {
-                                  newItems[index].split = [];
-                                }
-                                newItems[index].split![pIndex] = {
-                                  external_name: participant.external_name,
-                                  quantity: Number(e.target.value)
-                                };
-                                setItems(newItems);
-                              }}
-                              className="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              min="0"
-                              max={item.quantity}
-                              placeholder="0"
-                              required
-                            />
-                          </div>
-                        ))}
-                      </div>
+                  {splitMethod === 'per_product' && participants.length > 0 && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {participants.map((participant, participantIndex) => (
+                        <div key={participantIndex} className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-600">{participant.external_name}:</span>
+                          <input
+                            type="number"
+                            value={item.split?.[participantIndex]?.quantity || 0}
+                            onChange={(e) => updateItemSplit(itemIndex, participantIndex, Number(e.target.value))}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            min="0"
+                            max={item.quantity}
+                            required={splitMethod === 'per_product'}
+                          />
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -391,23 +485,33 @@ export default function CreateBillModal({ isOpen, onClose, token }: CreateBillMo
             </div>
           </div>
 
-          {/* Total Amount */}
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Total:</span>
-              <span className="text-lg font-bold text-gray-900">
-                Rp {calculateTotal().toLocaleString()}
-              </span>
+          <div className="flex justify-between items-center">
+            <div className="text-lg font-semibold">
+              Total: {new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+              }).format(calculateTotal())}
+            </div>
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading || !billName.trim() || participants.length === 0 || items.some(item => !item.name.trim() || item.price_per_unit <= 0 || item.quantity <= 0)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Creating...' : 'Create Bill'}
+              </button>
             </div>
           </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            Create Bill
-          </button>
         </form>
       </div>
     </div>
