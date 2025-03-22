@@ -426,44 +426,57 @@ export default function CreateBillModal({
             <div className="space-y-4">
               {items.map((item, itemIndex) => (
                 <div key={itemIndex} className="border rounded-md p-4">
-                  <div className="flex items-center space-x-2 mb-2">
+                  {/* Item Name - First Line */}
+                  <div className="mb-3">
+                    <label className="text-xs text-gray-600 mb-1 block">Item name</label>
                     <input
                       type="text"
                       value={item.name}
                       onChange={(e) => updateItem(itemIndex, 'name', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Item name"
                       required
                     />
-                    <input
-                      type="number"
-                      value={item.price_per_unit}
-                      onChange={(e) => updateItem(itemIndex, 'price_per_unit', e.target.value)}
-                      className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Price"
-                      min="0"
-                      required
-                    />
-                    <input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(itemIndex, 'quantity', e.target.value)}
-                      className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Quantity"
-                      min="1"
-                      required
-                    />
+                  </div>
+
+                  {/* Price, Quantity, Remove - Second Line */}
+                  <div className="flex items-end gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-600 mb-1 block">Price per unit</label>
+                      <input
+                        type="number"
+                        value={item.price_per_unit}
+                        onChange={(e) => updateItem(itemIndex, 'price_per_unit', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Price"
+                        min="0"
+                        required
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-xs text-gray-600 mb-1 block">Quantity</label>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(itemIndex, 'quantity', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Quantity"
+                        min="1"
+                        required
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeItem(itemIndex)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 px-3 py-2 h-[42px] flex items-center"
                       disabled={items.length === 1}
                     >
                       Remove
                     </button>
                   </div>
+
                   {splitMethod === 'per_product' && participants.length > 0 && (
-                    <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2">
                       {participants.map((participant, participantIndex) => (
                         <div key={participantIndex} className="flex items-center space-x-2">
                           <span className="text-sm text-gray-600">{participant.external_name}:</span>

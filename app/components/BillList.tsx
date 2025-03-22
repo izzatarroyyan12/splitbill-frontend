@@ -11,13 +11,13 @@ import { FiClock, FiUser } from 'react-icons/fi';
 
 interface BillListProps {
   refreshTrigger: number;
+  onBillClick: (bill: Bill) => void;
 }
 
-export default function BillList({ refreshTrigger }: BillListProps) {
+export default function BillList({ refreshTrigger, onBillClick }: BillListProps) {
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -63,14 +63,6 @@ export default function BillList({ refreshTrigger }: BillListProps) {
     }
   };
 
-  const handleBillClick = (bill: Bill) => {
-    setSelectedBill(bill);
-  };
-
-  const handleCloseDetail = () => {
-    setSelectedBill(null);
-  };
-
   if (loading) {
     return (
       <div className="p-6 text-center">
@@ -101,41 +93,38 @@ export default function BillList({ refreshTrigger }: BillListProps) {
         {bills.map((bill) => (
           <div
             key={bill._id}
-            onClick={() => handleBillClick(bill)}
-            className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
+            onClick={() => onBillClick(bill)}
+            className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
           >
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-lg font-medium text-gray-900">{bill.bill_name}</h3>
-                <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                <div className="mt-1 flex items-center text-sm text-gray-500 space-x-3">
                   <div className="flex items-center">
                     <FiUser className="h-4 w-4 mr-1" />
-                    {bill.created_by_username}
+                    <span>{bill.created_by_username}</span>
                   </div>
                   <div className="flex items-center">
                     <FiClock className="h-4 w-4 mr-1" />
-                    {new Date(bill.created_at).toLocaleDateString()}
+                    <span>{new Date(bill.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-lg font-semibold text-gray-900">
-                  {formatCurrency(bill.total_amount)}
-                </div>
+                <p className="text-lg font-semibold text-gray-900">
+                  {new Intl.NumberFormat('id-ID', {
+                    style: 'currency',
+                    currency: 'IDR',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  }).format(bill.total_amount)}
+                </p>
                 <p className="text-sm text-gray-500 capitalize">{bill.split_method} split</p>
               </div>
             </div>
           </div>
         ))}
       </div>
-
-      {selectedBill && (
-        <BillDetail
-          bill={selectedBill}
-          onClose={handleCloseDetail}
-          onUpdate={fetchBills}
-        />
-      )}
     </>
   );
 } 
