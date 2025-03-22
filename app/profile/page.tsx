@@ -19,7 +19,7 @@ export default function ProfilePage() {
         return;
       }
 
-      await apiService.addBalance(numAmount);
+      await apiService.addBalance({ amount: numAmount });
       toast.success('Balance added successfully');
       setShowAddBalance(false);
       setAmount('');
@@ -63,7 +63,6 @@ export default function ProfilePage() {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900">{user?.username}</h2>
-              <p className="text-gray-500">{user?.email}</p>
             </div>
           </div>
 

@@ -151,9 +151,9 @@ export const apiService = {
       api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       
       return { token: access_token, user };
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Login Error:', error);
-      if (error.message === 'Network Error') {
+      if (error instanceof Error && error.message === 'Network Error') {
         throw new Error('Unable to connect to server. Please check your internet connection.');
       }
       throw handleApiError(error);
@@ -200,6 +200,16 @@ export const apiService = {
       return response.data;
     } catch (error) {
       console.error('Add Balance Error:', error);
+      throw handleApiError(error);
+    }
+  },
+
+  getBalance: async (): Promise<{ balance: number }> => {
+    try {
+      const response = await retryRequest(() => api.get('/auth/balance'));
+      return response.data;
+    } catch (error: any) {
+      console.error('Get Balance Error:', error);
       throw handleApiError(error);
     }
   },
