@@ -15,14 +15,15 @@ export default function AddBalanceModal({
   onClose,
   onSuccess
 }: AddBalanceModalProps) {
-  const [amount, setAmount] = useState<number>(0);
+  const [amount, setAmount] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const { addBalance } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (amount <= 0) {
+    const numericAmount = amount === '' ? 0 : Number(amount);
+    if (numericAmount <= 0) {
       toast.error('Amount must be greater than 0');
       return;
     }
@@ -30,9 +31,9 @@ export default function AddBalanceModal({
     setIsLoading(true);
     
     try {
-      await addBalance({ amount });
+      await addBalance({ amount: numericAmount });
       toast.success('Balance added successfully');
-      setAmount(0);
+      setAmount('');
       onClose();
       if (onSuccess) {
         onSuccess();
@@ -75,8 +76,9 @@ export default function AddBalanceModal({
                 type="number"
                 id="amount"
                 value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
+                onChange={(e) => setAmount(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0"
                 min="0"
                 step="1000"
                 required
@@ -94,7 +96,7 @@ export default function AddBalanceModal({
             </button>
             <button
               type="submit"
-              disabled={isLoading || amount <= 0}
+              disabled={isLoading || amount === '' || Number(amount) <= 0}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Adding...' : 'Add Balance'}

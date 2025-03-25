@@ -8,6 +8,10 @@ const nextConfig = {
   output: 'standalone',
   distDir: '.next',
   generateEtags: false,
+  experimental: {
+    instrumentationHook: false,
+    serverActions: true,
+  },
   async headers() {
     return [
       {

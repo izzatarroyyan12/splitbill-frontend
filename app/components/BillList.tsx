@@ -96,30 +96,36 @@ export default function BillList({ refreshTrigger, onBillClick }: BillListProps)
             onClick={() => onBillClick(bill)}
             className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
           >
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">{bill.bill_name}</h3>
-                <div className="mt-1 flex items-center text-sm text-gray-500 space-x-3">
-                  <div className="flex items-center">
-                    <FiUser className="h-4 w-4 mr-1" />
-                    <span>{bill.created_by_username}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <FiClock className="h-4 w-4 mr-1" />
-                    <span>{new Date(bill.created_at).toLocaleDateString()}</span>
+            <div className="flex flex-col">
+              {user && bill.participants.some(p => 
+                (p.user_id === user._id || p.external_name === user.username) && 
+                p.status === 'unpaid'
+              ) && (
+                <div className="self-end bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-medium">
+                  Unpaid
+                </div>
+              )}
+              
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900">{bill.bill_name}</h3>
+                  <div className="mt-1 flex items-center text-sm text-gray-500 space-x-3">
+                    <div className="flex items-center">
+                      <FiUser className="h-4 w-4 mr-1" />
+                      <span>{bill.created_by_username}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <FiClock className="h-4 w-4 mr-1" />
+                      <span>{new Date(bill.created_at).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-semibold text-gray-900">
-                  {new Intl.NumberFormat('id-ID', {
-                    style: 'currency',
-                    currency: 'IDR',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  }).format(bill.total_amount)}
-                </p>
-                <p className="text-sm text-gray-500 capitalize">{bill.split_method} split</p>
+                <div className="text-right">
+                  <p className="text-lg font-semibold text-gray-900">
+                    {formatCurrency(bill.total_amount)}
+                  </p>
+                  <p className="text-sm text-gray-500 capitalize">{bill.split_method} split</p>
+                </div>
               </div>
             </div>
           </div>

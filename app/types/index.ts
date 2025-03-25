@@ -25,7 +25,7 @@ export interface Participant {
   username?: string;
   external_name?: string;
   amount_due: number;
-  status: 'pending' | 'paid';
+  status: 'pending' | 'paid' | 'unpaid';
 }
 
 export interface Bill {

@@ -8,21 +8,19 @@ import toast from 'react-hot-toast';
 interface PaymentConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onConfirm: (password: string) => Promise<void>;
   amount: number;
-  billId: string;
 }
 
 export default function PaymentConfirmationModal({
   isOpen,
   onClose,
-  onSuccess,
-  amount,
-  billId
+  onConfirm,
+  amount
 }: PaymentConfirmationModalProps) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -48,17 +46,8 @@ export default function PaymentConfirmationModal({
     setLoading(true);
 
     try {
-      const response = await apiService.payBill({
-        billId,
-        password
-      });
-
-      // Update user data to reflect new balance
-      await refreshUser();
-
-      toast.success(`Payment successful! Your new balance is ${formatCurrency(response.new_balance)}`);
-      onSuccess();
-      onClose();
+      await onConfirm(password);
+      setPassword('');
     } catch (error: any) {
       console.error('Error processing payment:', error);
       if (error.message.includes('Insufficient balance')) {
@@ -70,7 +59,6 @@ export default function PaymentConfirmationModal({
       }
     } finally {
       setLoading(false);
-      setPassword('');
     }
   };
 
