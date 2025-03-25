@@ -23,7 +23,7 @@ export default function CreateBillModal({
   const [includeMe, setIncludeMe] = useState(true);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [items, setItems] = useState<Item[]>([
-    { name: '', price_per_unit: 0, quantity: 1 }
+    { name: '', price_per_unit: '', quantity: '' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,7 +33,7 @@ export default function CreateBillModal({
       setBillName('');
       setIncludeMe(true);
       setSplitMethod('equal');
-      setItems([{ name: '', price_per_unit: 0, quantity: 1 }]);
+      setItems([{ name: '', price_per_unit: '', quantity: '' }]);
       
       // Initialize participants based on includeMe state
       if (user) {
@@ -112,8 +112,8 @@ export default function CreateBillModal({
       ...items,
       {
         name: '',
-        price_per_unit: 0,
-        quantity: 1,
+        price_per_unit: '',
+        quantity: '',
         split: participants.map(p => ({
           external_name: p.external_name,
           quantity: Math.floor(1 / participants.length)
@@ -131,9 +131,17 @@ export default function CreateBillModal({
   const updateItem = (index: number, field: keyof Item, value: string | number) => {
     const newItems = [...items];
     if (field === 'price_per_unit' || field === 'quantity') {
-      value = Math.max(0, Number(value));
+      // Handle empty string for price_per_unit and quantity
+      if (value === '') {
+        newItems[index] = { ...newItems[index], [field]: '' };
+      } else {
+        // Convert to number and ensure it's not negative
+        const numValue = Math.max(0, Number(value));
+        newItems[index] = { ...newItems[index], [field]: numValue };
+      }
+    } else {
+      newItems[index] = { ...newItems[index], [field]: value };
     }
-    newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
   };
 
@@ -142,14 +150,16 @@ export default function CreateBillModal({
     const item = newItems[itemIndex];
     
     if (!item.split) {
+      const itemQuantity = item.quantity === '' ? 0 : Number(item.quantity);
       item.split = participants.map(p => ({
         external_name: p.external_name,
-        quantity: Math.floor(item.quantity / participants.length)
+        quantity: Math.floor(itemQuantity / participants.length)
       }));
     }
     
     // Ensure quantity doesn't exceed item's total quantity
-    const newQuantity = Math.min(Math.max(0, quantity), item.quantity);
+    const itemQuantity = item.quantity === '' ? 0 : Number(item.quantity);
+    const newQuantity = Math.min(Math.max(0, quantity), itemQuantity);
     if (item.split) {
       item.split[participantIndex].quantity = newQuantity;
     }
@@ -158,7 +168,11 @@ export default function CreateBillModal({
   };
 
   const calculateTotal = () => {
-    return items.reduce((sum, item) => sum + (item.price_per_unit * item.quantity), 0);
+    return items.reduce((sum, item) => {
+      const price = item.price_per_unit === '' ? 0 : Number(item.price_per_unit);
+      const quantity = item.quantity === '' ? 0 : Number(item.quantity);
+      return sum + (price * quantity);
+    }, 0);
   };
 
   const calculateEqualSplit = (totalAmount: number, numberOfParticipants: number) => {
@@ -170,7 +184,9 @@ export default function CreateBillModal({
     const participantAmounts = new Array(participants.length).fill(0);
     
     items.forEach(item => {
-      const itemTotal = item.price_per_unit * item.quantity;
+      const price = item.price_per_unit === '' ? 0 : Number(item.price_per_unit);
+      const quantity = item.quantity === '' ? 0 : Number(item.quantity);
+      const itemTotal = price * quantity;
       
       if (item.split) {
         const totalSplitQuantity = item.split.reduce((sum, split) => sum + split.quantity, 0);
@@ -232,8 +248,8 @@ export default function CreateBillModal({
         })),
         items: items.map(item => ({
           name: item.name.trim(),
-          price_per_unit: Number(item.price_per_unit),
-          quantity: Number(item.quantity),
+          price_per_unit: item.price_per_unit === '' ? 0 : Number(item.price_per_unit),
+          quantity: item.quantity === '' ? 0 : Number(item.quantity),
           split: splitMethod === 'per_product' ? item.split?.map(split => ({
             external_name: split.external_name || '',
             quantity: Number(split.quantity)
@@ -407,7 +423,7 @@ export default function CreateBillModal({
                         value={item.price_per_unit}
                         onChange={(e) => updateItem(itemIndex, 'price_per_unit', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Price"
+                        placeholder="0"
                         min="0"
                         required
                       />
@@ -419,7 +435,7 @@ export default function CreateBillModal({
                         value={item.quantity}
                         onChange={(e) => updateItem(itemIndex, 'quantity', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Quantity"
+                        placeholder="1"
                         min="1"
                         required
                       />
@@ -477,7 +493,7 @@ export default function CreateBillModal({
               </button>
               <button
                 type="submit"
-                disabled={isLoading || !billName.trim() || participants.length === 0 || items.some(item => !item.name.trim() || item.price_per_unit <= 0 || item.quantity <= 0)}
+                disabled={isLoading || !billName.trim() || participants.length === 0 || items.some(item => !item.name.trim() || (item.price_per_unit === '' || Number(item.price_per_unit) <= 0) || (item.quantity === '' || Number(item.quantity) <= 0))}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Creating...' : 'Create Bill'}

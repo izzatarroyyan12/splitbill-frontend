@@ -15,8 +15,8 @@ export interface ItemSplit {
 
 export interface Item {
   name: string;
-  price_per_unit: number;
-  quantity: number;
+  price_per_unit: number | '';
+  quantity: number | '';
   split?: ItemSplit[];
 }
 

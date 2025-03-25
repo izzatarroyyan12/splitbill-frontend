@@ -7,7 +7,7 @@ import AddBalanceModal from '../components/AddBalanceModal';
 import BillList from '../components/BillList';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { FiPlus, FiUser, FiBell, FiSettings, FiLogOut, FiHome, FiCreditCard, FiPieChart } from 'react-icons/fi';
+import { FiPlus, FiUser, FiBell, FiSettings, FiLogOut, FiHome, FiCreditCard, FiPieChart, FiTrendingUp } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import IPhoneFrame from '../components/IPhoneFrame';
 import BillDetail from '../components/BillDetail';
@@ -175,11 +175,11 @@ export default function Dashboard() {
               <span className="text-xs font-medium text-gray-700">Analytics</span>
             </button>
             <button 
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={handleFeatureComingSoon}
               className="quick-action-button h-20 flex flex-col items-center justify-center space-y-1"
             >
-              <FiPlus className="h-6 w-6 text-blue-600" />
-              <span className="text-xs font-medium text-gray-700">New Bill</span>
+              <FiTrendingUp className="h-6 w-6 text-blue-600" />
+              <span className="text-xs font-medium text-gray-700">Invest</span>
             </button>
           </div>
 
