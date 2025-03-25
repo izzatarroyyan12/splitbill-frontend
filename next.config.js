@@ -5,6 +5,9 @@ const nextConfig = {
   images: {
     domains: ['localhost'],
   },
+  output: 'standalone',
+  distDir: '.next',
+  generateEtags: false,
   async headers() {
     return [
       {

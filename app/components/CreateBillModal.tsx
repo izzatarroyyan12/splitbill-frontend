@@ -94,7 +94,7 @@ export default function CreateBillModal({
         toast.error("You can't remove yourself while 'Include me' is checked");
         return;
       }
-      setParticipants(participants.filter((_, i) => i !== index));
+    setParticipants(participants.filter((_, i) => i !== index));
     }
   };
 
@@ -124,7 +124,7 @@ export default function CreateBillModal({
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
+    setItems(items.filter((_, i) => i !== index));
     }
   };
 
@@ -226,7 +226,7 @@ export default function CreateBillModal({
     try {
       // Calculate total amount
       const totalAmount = calculateTotal();
-
+      
       // Calculate participant amounts based on split method
       const participantAmounts = splitMethod === 'equal'
         ? calculateEqualSplit(totalAmount, participants.length)
@@ -418,15 +418,15 @@ export default function CreateBillModal({
                   <div className="flex items-end gap-3">
                     <div className="flex-1">
                       <label className="text-xs text-gray-600 mb-1 block">Price per unit</label>
-                      <input
-                        type="number"
-                        value={item.price_per_unit}
+                    <input
+                      type="number"
+                      value={item.price_per_unit}
                         onChange={(e) => updateItem(itemIndex, 'price_per_unit', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="0"
                         min="0"
-                        required
-                      />
+                      required
+                    />
                     </div>
                     <div className="flex-1">
                       <label className="text-xs text-gray-600 mb-1 block">Quantity</label>
@@ -440,32 +440,32 @@ export default function CreateBillModal({
                         required
                       />
                     </div>
-                    <button
-                      type="button"
+                        <button
+                          type="button"
                       onClick={() => removeItem(itemIndex)}
                       className="text-red-600 hover:text-red-700 px-3 py-2 h-[42px] flex items-center"
                       disabled={items.length === 1}
-                    >
+                        >
                       Remove
-                    </button>
+                        </button>
                   </div>
-
+                  
                   {splitMethod === 'per_product' && participants.length > 0 && (
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       {participants.map((participant, participantIndex) => (
                         <div key={participantIndex} className="flex items-center space-x-2">
                           <span className="text-sm text-gray-600">{participant.external_name || ''}</span>
-                          <input
-                            type="number"
+                            <input
+                              type="number"
                             value={item.split?.[participantIndex]?.quantity || 0}
                             onChange={(e) => updateItemSplit(itemIndex, participantIndex, Number(e.target.value))}
                             className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            min="0"
-                            max={item.quantity}
+                              min="0"
+                              max={item.quantity}
                             required={splitMethod === 'per_product'}
-                          />
-                        </div>
-                      ))}
+                            />
+                          </div>
+                        ))}
                     </div>
                   )}
                 </div>
@@ -473,7 +473,7 @@ export default function CreateBillModal({
             </div>
           </div>
 
-          <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center">
             <div className="text-lg font-semibold">
               Total: {new Intl.NumberFormat('id-ID', {
                 style: 'currency',
@@ -491,13 +491,13 @@ export default function CreateBillModal({
               >
                 Cancel
               </button>
-              <button
-                type="submit"
+          <button
+            type="submit"
                 disabled={isLoading || !billName.trim() || participants.length === 0 || items.some(item => !item.name.trim() || (item.price_per_unit === '' || Number(item.price_per_unit) <= 0) || (item.quantity === '' || Number(item.quantity) <= 0))}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+          >
                 {isLoading ? 'Creating...' : 'Create Bill'}
-              </button>
+          </button>
             </div>
           </div>
         </form>

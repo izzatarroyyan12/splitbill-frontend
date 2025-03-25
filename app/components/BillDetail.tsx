@@ -100,11 +100,11 @@ export default function BillDetail({ bill, isOpen, onClose, onUpdate }: BillDeta
                     <div>
                       <h4 className="font-medium text-gray-900">{item.name}</h4>
                       <p className="text-sm text-gray-500">
-                        {item.quantity} x {formatCurrency(item.price_per_unit)}
+                        {item.quantity} x {formatCurrency(Number(item.price_per_unit))}
                       </p>
                     </div>
                     <p className="font-medium text-gray-900">
-                      {formatCurrency(item.price_per_unit * item.quantity)}
+                      {formatCurrency(Number(item.price_per_unit) * Number(item.quantity))}
                     </p>
                   </div>
                   {bill.split_method === 'per_product' && item.split && (
