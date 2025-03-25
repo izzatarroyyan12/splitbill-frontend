@@ -239,16 +239,55 @@ body {
     inset 0 0 32px rgba(234, 179, 8, 0.1);
 }
 
+/* Base input styles */
+input, textarea, select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+/* Auth input styles */
 .auth-input {
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(234, 179, 8, 0.3);
   transition: all 0.3s ease;
+  color: #000000 !important;
 }
 
 .auth-input:focus {
   background: white;
   border-color: #eab308;
-  box-shadow: 0 0 0 4px rgba(234, 179, 8, 0.15);
+  color: #000000 !important;
+}
+
+/* Modal input styles */
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+/* Form input styles */
+form input,
+form textarea,
+form select {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
+
+/* Override any dark mode or theme settings */
+@media (prefers-color-scheme: dark) {
+  input, textarea, select,
+  .auth-input,
+  .modal-content input,
+  .modal-content textarea,
+  .modal-content select,
+  form input,
+  form textarea,
+  form select {
+    color: #000000 !important;
+    background-color: #ffffff !important;
+  }
 }
 
 .auth-button {
